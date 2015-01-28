@@ -24,9 +24,12 @@ Best run in a VM with 2GB memory (adjust memory and/or filesize)
 
 Choose an option to perform the task. A confirmation message will appear in each case - hit enter again to proceed.
 
-General steps:
+*General steps:*
+
 1. load the shared view
+
 2. load the private view
+
 3. start experimenting with reading/writing either view, copying private -> shared, remapping the private view, etc
 
 ### Interesting things to note:
