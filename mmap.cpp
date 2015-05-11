@@ -215,6 +215,51 @@ public:
         cout << "- Done!" << endl;
     }
 
+    void readWrite(VIEW rview, VIEW wview, int percentage)
+    {
+        unsigned char *const rbase = (rview == SHARED ? sview : pview);
+        unsigned char *const wbase = (wview == SHARED ? sview : pview);
+        const char *rname = (rview == SHARED ? "shared" : "private");
+        const char *wname = (wview == SHARED ? "shared" : "private");
+        if (rbase == 0)
+        {
+            cerr << "-- " << rname << " view doesn't exist" << endl;
+            return;
+        }
+        if (wbase == 0)
+        {
+            cerr << "-- " << wname << " view doesn't exist" << endl;
+            return;
+        }
+        cout << "- about to read/write " << rname << "/" << wname << " views..." << endl;
+        cin.get();
+        unsigned long long total_read = 0;
+        unsigned long long total_write = 0;
+        float read_frequency = (float) percentage / 100;
+        float write_frequency = (float) (100 - percentage) / 100;
+        read_frequency = read_frequency * length;
+        write_frequency = write_frequency * length;
+        if(read_frequency > 0) {
+          read_frequency = floor(length / read_frequency);
+        }
+        if(write_frequency > 0) {
+          write_frequency = floor(length / write_frequency);
+        }
+        cout << "read/write granularity: " << read_frequency << "/" << write_frequency << endl;
+        for (int i = 0; i < length; i++)
+        {
+            if(read_frequency != 0 && (read_frequency == 1 || i%((int) read_frequency) == 0)) {
+              total_read++;
+              unsigned long _t = *(rbase + i);
+            }
+            if(write_frequency != 0 && (write_frequency == 1 || i%((int) write_frequency) == 0)) {
+              total_write++;
+              ++(*(wbase + i));
+            }
+        }
+        cout << "- Done! read[" << rname << "]: " << total_read << " / write[" << wname << "]: " << total_write << endl;
+    }
+
     int getFileLength() {
         return length;
     }
@@ -259,6 +304,8 @@ int main()
                  "8: write private" << endl <<
                  "9: read/write shared" << endl <<
                  "a: read/write private" << endl <<
+                 "b: read/write shared/private" << endl <<
+                 "c: read/write private/shared" << endl <<
                  "?: <this help>" << endl;
             break;
         case '1': mmap.mapShared(); break;
@@ -285,6 +332,24 @@ int main()
               cout << "Invalid percentage!";
             } else {
               mmap.readWrite(MMap::PRIVATE, percentage);
+            }
+            break;
+        case 'b':
+            cout << "Percentage of reads: ";
+            cin >> percentage;
+            if(percentage > 100 || percentage < 0) {
+              cout << "Invalid percentage!";
+            } else {
+              mmap.readWrite(MMap::SHARED, MMap::PRIVATE, percentage);
+            }
+            break;
+        case 'c':
+            cout << "Percentage of reads: ";
+            cin >> percentage;
+            if(percentage > 100 || percentage < 0) {
+              cout << "Invalid percentage!";
+            } else {
+              mmap.readWrite(MMap::PRIVATE, MMap::SHARED, percentage);
             }
             break;
         default: exit(0);
