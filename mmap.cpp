@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include <stdlib.h>
+#include <math.h> 
 
 using namespace std;
 
@@ -138,7 +139,7 @@ public:
         cout << "- Done!" << endl;
     }
 
-    void read(VIEW view)
+    void read(VIEW view, int percentage)
     {
         const unsigned char *const base = (view == SHARED ? sview : pview);
         const char *name = (view == SHARED ? "shared" : "private");
@@ -147,17 +148,26 @@ public:
             cerr << "-- " << name << " view doesn't exist" << endl;
             return;
         }
-        cout << "- about to read " << name << " view...";
+        cout << "- about to read " << name << " view..." << endl;
         cin.get();
-        unsigned long long total = 0;
+        unsigned long long total_read = 0;
+        float read_frequency = (float) percentage / 100;
+        read_frequency = read_frequency * length;
+        if(read_frequency > 0) {
+          read_frequency = floor(length / read_frequency);
+        }
+        cout << "read granularity: " << read_frequency << endl;
         for (int i = 0; i < length; i++)
         {
-            total += *(base + i);
+            if(read_frequency != 0 && (read_frequency == 1 || i%((int) read_frequency) == 0)) {
+              total_read++;
+              unsigned long _t = *(base + i);
+            }
         }
-        cout << "- Done! total: " << total << endl;
+        cout << "- Done! read: " << total_read << " from " << length << endl;
     }
 
-    void write(VIEW view)
+    void readWrite(VIEW view, int percentage)
     {
         unsigned char *const base = (view == SHARED ? sview : pview);
         const char *name = (view == SHARED ? "shared" : "private");
@@ -166,13 +176,110 @@ public:
             cerr << "-- " << name << " view doesn't exist" << endl;
             return;
         }
-        cout << "- about to write " << name << " view...";
+        cout << "- about to read/write " << name << " view..." << endl;
         cin.get();
+        unsigned long long total_read = 0;
+        unsigned long long total_write = 0;
+        float read_frequency = (float) percentage / 100;
+        float write_frequency = (float) (100 - percentage) / 100;
+        read_frequency = read_frequency * length;
+        write_frequency = write_frequency * length;
+        if(read_frequency > 0) {
+          read_frequency = floor(length / read_frequency);
+        }
+        if(write_frequency > 0) {
+          write_frequency = floor(length / write_frequency);
+        }
+        cout << "read/write granularity: " << read_frequency << "/" << write_frequency << endl;
         for (int i = 0; i < length; i++)
         {
-            ++(*(base + i));
+            if(read_frequency != 0 && (read_frequency == 1 || i%((int) read_frequency) == 0)) {
+              total_read++;
+              unsigned long _t = *(base + i);
+            }
+            if(write_frequency != 0 && (write_frequency == 1 || i%((int) write_frequency) == 0)) {
+              total_write++;
+              ++(*(base + i));
+            }
         }
-        cout << "- Done!" << endl;
+        cout << "- Done! read: " << total_read << " / write: " << total_write << endl;
+    }
+
+    void write(VIEW view, int percentage)
+    {
+        unsigned char *const base = (view == SHARED ? sview : pview);
+        const char *name = (view == SHARED ? "shared" : "private");
+        if (base == 0)
+        {
+            cerr << "-- " << name << " view doesn't exist" << endl;
+            return;
+        }
+        cout << "- about to write " << name << " view..." << endl;
+        cin.get();
+        unsigned long long total_write = 0;
+        float write_frequency = (float) percentage / 100;
+        write_frequency = write_frequency * length;
+        if(write_frequency > 0) {
+          write_frequency = floor(length / write_frequency);
+        }
+        cout << "write granularity: " << write_frequency << endl;
+        for (int i = 0; i < length; i++)
+        {
+            if(write_frequency != 0 && (write_frequency == 1 || i%((int) write_frequency) == 0)) {
+              total_write++;
+              ++(*(base + i));
+            }
+        }
+        cout << "- Done! write: " << total_write << " from " << length << endl;
+    }
+
+    void readWrite(VIEW rview, VIEW wview, int percentage)
+    {
+        unsigned char *const rbase = (rview == SHARED ? sview : pview);
+        unsigned char *const wbase = (wview == SHARED ? sview : pview);
+        const char *rname = (rview == SHARED ? "shared" : "private");
+        const char *wname = (wview == SHARED ? "shared" : "private");
+        if (rbase == 0)
+        {
+            cerr << "-- " << rname << " view doesn't exist" << endl;
+            return;
+        }
+        if (wbase == 0)
+        {
+            cerr << "-- " << wname << " view doesn't exist" << endl;
+            return;
+        }
+        cout << "- about to read/write " << rname << "/" << wname << " views..." << endl;
+        cin.get();
+        unsigned long long total_read = 0;
+        unsigned long long total_write = 0;
+        float read_frequency = (float) percentage / 100;
+        float write_frequency = (float) (100 - percentage) / 100;
+        read_frequency = read_frequency * length;
+        write_frequency = write_frequency * length;
+        if(read_frequency > 0) {
+          read_frequency = floor(length / read_frequency);
+        }
+        if(write_frequency > 0) {
+          write_frequency = floor(length / write_frequency);
+        }
+        cout << "read/write granularity: " << read_frequency << "/" << write_frequency << endl;
+        for (int i = 0; i < length; i++)
+        {
+            if(read_frequency != 0 && (read_frequency == 1 || i%((int) read_frequency) == 0)) {
+              total_read++;
+              unsigned long _t = *(rbase + i);
+            }
+            if(write_frequency != 0 && (write_frequency == 1 || i%((int) write_frequency) == 0)) {
+              total_write++;
+              ++(*(wbase + i));
+            }
+        }
+        cout << "- Done! read[" << rname << "]: " << total_read << " / write[" << wname << "]: " << total_write << endl;
+    }
+
+    int getFileLength() {
+        return length;
     }
 
 private:
@@ -186,9 +293,17 @@ private:
     unsigned char *pview;
 };
 
+long getFileSize(std::string filepath) {
+    struct stat stat_buf;
+    int rc = stat(filepath.c_str(), &stat_buf);
+    return rc == 0 ? stat_buf.st_size : -1;
+}
+
 int main()
 {
-    MMap mmap("/tmp/1GB", 1024 * 1024 * 1024);
+    unsigned int percentage;
+    MMap mmap("/tmp/1GB", getFileSize("/tmp/1GB"));
+    cout << "File size: " << mmap.getFileLength() << endl;
 
     string input = "?";
     while (true)
@@ -205,16 +320,88 @@ int main()
                  "6: write shared" << endl <<
                  "7: read private" << endl <<
                  "8: write private" << endl <<
+                 "9: read/write shared" << endl <<
+                 "a: read/write private" << endl <<
+                 "b: read/write shared/private" << endl <<
+                 "c: read/write private/shared" << endl <<
                  "?: <this help>" << endl;
             break;
         case '1': mmap.mapShared(); break;
         case '2': mmap.mapPrivate(); break;
         case '3': mmap.remapPrivate(); break;
         case '4': mmap.copyPrivateToShared(); break;
-        case '5': mmap.read(MMap::SHARED); break;
-        case '6': mmap.write(MMap::SHARED); break;
-        case '7': mmap.read(MMap::PRIVATE); break;
-        case '8': mmap.write(MMap::PRIVATE); break;
+        case '5': 
+            cout << "Percentage of reads: ";
+            cin >> percentage;
+            if(percentage > 100 || percentage < 0) {
+              cout << "Invalid percentage!";
+            } else {
+              mmap.read(MMap::SHARED, percentage);
+            }
+            break;
+        case '6': 
+            cout << "Percentage of writes: ";
+            cin >> percentage;
+            if(percentage > 100 || percentage < 0) {
+              cout << "Invalid percentage!";
+            } else {
+              mmap.write(MMap::SHARED, percentage);
+            }
+            break;
+        case '7':
+            cout << "Percentage of reads: ";
+            cin >> percentage;
+            if(percentage > 100 || percentage < 0) {
+              cout << "Invalid percentage!";
+            } else {
+              mmap.read(MMap::PRIVATE, percentage);
+            }
+            break;
+        case '8':
+            cout << "Percentage of writes: ";
+            cin >> percentage;
+            if(percentage > 100 || percentage < 0) {
+              cout << "Invalid percentage!";
+            } else {
+              mmap.write(MMap::PRIVATE, percentage);
+            }
+            break;
+        case '9':
+            cout << "Percentage of reads: ";
+            cin >> percentage;
+            if(percentage > 100 || percentage < 0) {
+              cout << "Invalid percentage!";
+            } else {
+              mmap.readWrite(MMap::SHARED, percentage);
+            }
+            break;
+        case 'a':
+            cout << "Percentage of reads: ";
+            cin >> percentage;
+            if(percentage > 100 || percentage < 0) {
+              cout << "Invalid percentage!";
+            } else {
+              mmap.readWrite(MMap::PRIVATE, percentage);
+            }
+            break;
+        case 'b':
+            cout << "Percentage of reads: ";
+            cin >> percentage;
+            if(percentage > 100 || percentage < 0) {
+              cout << "Invalid percentage!";
+            } else {
+              mmap.readWrite(MMap::SHARED, MMap::PRIVATE, percentage);
+            }
+            break;
+        case 'c':
+            cout << "Percentage of reads: ";
+            cin >> percentage;
+            if(percentage > 100 || percentage < 0) {
+              cout << "Invalid percentage!";
+            } else {
+              mmap.readWrite(MMap::PRIVATE, MMap::SHARED, percentage);
+            }
+            break;
         default: exit(0);
         }
         cout << "choice? ";
